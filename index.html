@@ -605,6 +605,12 @@
         <iframe id="zweb-frame" src="about:blank"></iframe>
     </div>
 
+    <!-- HyperZSearch page -->
+    <div id="hyperzsearch" style="display:none; padding:20px; color:white; overflow-y:auto; height:calc(100vh - 80px);">
+        <h2 style="color:#00e0ff; margin-top:0;">HyperZSearch Results</h2>
+        <div id="hyperzsearch-results"></div>
+    </div>
+
     <div id="games">
         <div class="games-container">
             <div class="game-card">
@@ -694,7 +700,11 @@
             document.getElementById("zweb").style.display = "none";
             document.getElementById("games").style.display = "none";
             document.getElementById("chatbot").style.display = "none";
+            document.getElementById("hyperzsearch").style.display = "none";
             document.getElementById(id).style.display = "block";
+            if (id === "zweb") {
+                document.getElementById("zweb-frame").style.display = "block";
+            }
         }
 
         var searchBtn = document.getElementById("searchBtn");
@@ -815,6 +825,9 @@
 
             if (!currentTab) return;
 
+            document.getElementById("hyperzsearch").style.display = "none";
+            document.getElementById("zweb-frame").style.display = "block";
+
             if (currentTab.url === "New Tab") {
                 document.getElementById("zweb-frame").src = "about:blank";
                 document.getElementById("zweb-url").value = "";
@@ -881,13 +894,22 @@
         }
 
         function zwebNavigate() {
-            var url = document.getElementById("zweb-url").value.replace(/^\s+|\s+$/g, "");
-            if (!url) return;
-            if (!currentTab) {
-                createTab(url);
-            } else {
-                loadTab(url);
+            var q = document.getElementById("zweb-url").value.replace(/^\s+|\s+$/g, "");
+            if (!q) return;
+
+            var isURL = (
+                q.indexOf("http://") === 0 ||
+                q.indexOf("https://") === 0 ||
+                q.indexOf(".") !== -1
+            );
+
+            if (isURL) {
+                if (!currentTab) createTab(q);
+                loadTab(q);
+                return;
             }
+
+            runHyperZSearch(q);
         }
 
         document.getElementById("zweb-url").onkeydown = function (e) {
@@ -1776,6 +1798,74 @@
                 }
             };
             xhr.send(null);
+        }
+
+        function runHyperZSearch(query) {
+            showSection("zweb");
+            document.getElementById("zweb-frame").style.display = "none";
+            document.getElementById("hyperzsearch").style.display = "block";
+
+            var resultsBox = document.getElementById("hyperzsearch-results");
+            resultsBox.innerHTML = "<p style='color:#a9b3d9;'>Searching Wikipedia for: <b>" + query + "</b>...</p>";
+
+            var url = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" +
+                      encodeURIComponent(query) +
+                      "&utf8=&format=json&origin=*";
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", url, true);
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            var items = data.query && data.query.search ? data.query.search : [];
+
+                            if (!items.length) {
+                                resultsBox.innerHTML = "<p>No results found.</p>";
+                                return;
+                            }
+
+                            var html = "";
+                            for (var i = 0; i < items.length; i++) {
+                                var title = items[i].title;
+                                var snippet = items[i].snippet.replace(/<\/?[^>]+(>|$)/g, "");
+                                var pageURL = "https://en.wikipedia.org/wiki/" + encodeURIComponent(title);
+
+                                html +=
+                                    "<div style='margin-bottom:20px; padding:12px; border:1px solid #1a2238; border-radius:12px; background:#050816;'>" +
+                                        "<div style='font-size:18px; color:#00e0ff; cursor:pointer;' onclick='openZWebTab(\"" + pageURL + "\")'>" +
+                                            title +
+                                        "</div>" +
+                                        "<div style='color:#a9b3d9; margin:6px 0;'>" +
+                                            snippet +
+                                        "</div>" +
+                                        "<div style='color:#00b4ff; font-size:13px; cursor:pointer;' onclick='openZWebTab(\"" + pageURL + "\")'>" +
+                                            pageURL +
+                                        "</div>" +
+                                    "</div>";
+                            }
+
+                            resultsBox.innerHTML = html;
+
+                        } catch (e) {
+                            resultsBox.innerHTML = "<p>Error parsing results.</p>";
+                        }
+                    } else {
+                        resultsBox.innerHTML = "<p>Search error: " + xhr.status + "</p>";
+                    }
+                }
+            };
+
+            xhr.send(null);
+        }
+
+        function openZWebTab(url) {
+            createTab(url);
+            loadTab(url);
+            document.getElementById("hyperzsearch").style.display = "none";
+            document.getElementById("zweb-frame").style.display = "block";
         }
     </script>
 </body>
