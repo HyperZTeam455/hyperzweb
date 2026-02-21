@@ -436,6 +436,11 @@
             grid-template-rows: repeat(8, 40px);
         }
 
+        .board.minesweeper {
+            grid-template-columns: repeat(10, 32px);
+            grid-template-rows: repeat(10, 32px);
+        }
+
         .cell {
             background:#02030a;
             border:1px solid var(--border-subtle);
@@ -449,6 +454,32 @@
 
         .cell.reversi-cell {
             font-size:20px;
+        }
+
+        .cell.minesweeper-cell {
+            font-size:14px;
+            font-weight:600;
+            background:#0a1020;
+            border:1px solid #2a3a5a;
+        }
+
+        .cell.minesweeper-cell:hover {
+            background:#0f1530;
+            border-color:var(--accent-soft);
+        }
+
+        .cell.minesweeper-cell.revealed {
+            background:#050816;
+            cursor:default;
+            border:1px solid var(--border-subtle);
+        }
+
+        .cell.minesweeper-cell.flagged {
+            color:var(--danger);
+        }
+
+        .cell.minesweeper-cell.mine {
+            color:var(--danger);
         }
 
         .status {
@@ -635,6 +666,12 @@
                 <p>Classic Snake with arrow keys.</p>
                 <button class="btn-small" onclick="openGame('snake')">Play</button>
             </div>
+
+            <div class="game-card">
+                <h2>Minesweeper</h2>
+                <p>Find all safe squares and avoid the mines.</p>
+                <button class="btn-small" onclick="openGame('minesweeper')">Play</button>
+            </div>
         </div>
     </div>
 
@@ -709,6 +746,21 @@
             </canvas>
             <div id="snake-status" class="status"></div>
         </div>
+
+        <div id="game-minesweeper" class="game-inner">
+            <div class="game-header"><h2>Minesweeper</h2></div>
+            <div class="game-options">
+                <label>Difficulty:</label>
+                <select id="minesweeper-difficulty">
+                    <option value="easy">Easy (10 mines)</option>
+                    <option value="medium" selected>Medium (30 mines)</option>
+                    <option value="hard">Hard (50 mines)</option>
+                </select>
+                <button class="btn-small" onclick="minesweaperReset()">Reset</button>
+            </div>
+            <div id="minesweeper-board" class="board minesweeper"></div>
+            <div id="minesweeper-status" class="status"></div>
+        </div>
     </div>
 
     <script>
@@ -776,6 +828,11 @@
             if (lower.indexOf("snake") !== -1) {
                 showSection("games");
                 openGame("snake");
+                return;
+            }
+            if (lower.indexOf("mine") !== -1 || lower.indexOf("minesweeper") !== -1) {
+                showSection("games");
+                openGame("minesweeper");
                 return;
             }
 
@@ -952,6 +1009,7 @@
             document.getElementById("game-rev").style.display = "none";
             document.getElementById("game-pong").style.display = "none";
             document.getElementById("game-snake").style.display = "none";
+            document.getElementById("game-minesweeper").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -965,6 +1023,9 @@
             } else if (gameId === "snake") {
                 document.getElementById("game-snake").style.display = "block";
                 snakeReset();
+            } else if (gameId === "minesweeper") {
+                document.getElementById("game-minesweeper").style.display = "block";
+                minesweaperReset();
             }
         }
 
@@ -973,6 +1034,7 @@
             pongStop();
             snakeRunning = false;
             if (snakeTimer) clearInterval(snakeTimer);
+            minesweaperRunning = false;
         }
 
         var tttBoardEl = document.getElementById("ttt-board");
@@ -1977,6 +2039,200 @@
             clearInterval(snakeTimer);
             snakeStatus.innerHTML = "Game Over — press Reset";
         }
+
+        // MINESWEEPER GAME
+        var minesweeperBoard = null;
+        var minesweeperBoardEl = document.getElementById("minesweeper-board");
+        var minesweeperStatusEl = document.getElementById("minesweeper-status");
+        var minesweeperDifficultyEl = document.getElementById("minesweeper-difficulty");
+        var minesweaperRunning = false;
+        var minesweeperRevealed = 0;
+        var minesweeperFlagged = 0;
+        var minesweeperGameOver = false;
+
+        function minesweeperGetConfig(difficulty) {
+            if (difficulty === "easy") return { rows: 10, cols: 10, mines: 10 };
+            if (difficulty === "medium") return { rows: 10, cols: 10, mines: 30 };
+            if (difficulty === "hard") return { rows: 10, cols: 10, mines: 50 };
+            return { rows: 10, cols: 10, mines: 30 };
+        }
+
+        function minesweeperInit() {
+            var config = minesweeperGetConfig(minesweeperDifficultyEl.value);
+            var rows = config.rows;
+            var cols = config.cols;
+            var mineCount = config.mines;
+
+            minesweeperBoard = [];
+            var i, j;
+            for (i = 0; i < rows; i++) {
+                minesweeperBoard[i] = [];
+                for (j = 0; j < cols; j++) {
+                    minesweeperBoard[i][j] = {
+                        mine: false,
+                        revealed: false,
+                        flagged: false,
+                        adjMines: 0
+                    };
+                }
+            }
+
+            var placed = 0;
+            while (placed < mineCount) {
+                var r = Math.floor(Math.random() * rows);
+                var c = Math.floor(Math.random() * cols);
+                if (!minesweeperBoard[r][c].mine) {
+                    minesweeperBoard[r][c].mine = true;
+                    placed++;
+                }
+            }
+
+            for (i = 0; i < rows; i++) {
+                for (j = 0; j < cols; j++) {
+                    if (!minesweeperBoard[i][j].mine) {
+                        var count = 0;
+                        var dr, dc;
+                        for (dr = -1; dr <= 1; dr++) {
+                            for (dc = -1; dc <= 1; dc++) {
+                                var nr = i + dr;
+                                var nc = j + dc;
+                                if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && minesweeperBoard[nr][nc].mine) {
+                                    count++;
+                                }
+                            }
+                        }
+                        minesweeperBoard[i][j].adjMines = count;
+                    }
+                }
+            }
+
+            minesweeperRevealed = 0;
+            minesweeperFlagged = 0;
+            minesweeperGameOver = false;
+            minesweaperRunning = true;
+            minesweeperRender();
+            minesweeperStatusEl.innerHTML = "Click to reveal, right-click to flag";
+        }
+
+        function minesweeperRender() {
+            minesweeperBoardEl.innerHTML = "";
+            var i, j, cell, data;
+            for (i = 0; i < minesweeperBoard.length; i++) {
+                for (j = 0; j < minesweeperBoard[i].length; j++) {
+                    (function (r, c) {
+                        cell = document.createElement("div");
+                        cell.className = "cell minesweeper-cell";
+                        data = minesweeperBoard[r][c];
+
+                        if (data.revealed) {
+                            cell.className += " revealed";
+                            if (data.mine) {
+                                cell.innerHTML = "💣";
+                                cell.className += " mine";
+                            } else if (data.adjMines > 0) {
+                                cell.innerHTML = String(data.adjMines);
+                                cell.style.color = ["", "#00e0ff", "#00ff88", "#ffaa00", "#ff6600", "#ff4444", "#ff0000", "#990000", "#660000"][data.adjMines];
+                            }
+                        } else if (data.flagged) {
+                            cell.innerHTML = "🚩";
+                            cell.className += " flagged";
+                        } else {
+                            cell.style.background = "#0a1020";
+                        }
+
+                        cell.onclick = function () { minesweeperClick(r, c, "left"); };
+                        cell.oncontextmenu = function (e) {
+                            e.preventDefault();
+                            minesweeperClick(r, c, "right");
+                        };
+
+                        minesweeperBoardEl.appendChild(cell);
+                    })(i, j);
+                }
+            }
+        }
+
+        function minesweeperClick(r, c, button) {
+            if (minesweeperGameOver || !minesweaperRunning) return;
+            var data = minesweeperBoard[r][c];
+
+            if (button === "right") {
+                if (!data.revealed) {
+                    data.flagged = !data.flagged;
+                    if (data.flagged) minesweeperFlagged++;
+                    else minesweeperFlagged--;
+                }
+                minesweeperRender();
+                return;
+            }
+
+            if (data.revealed || data.flagged) return;
+
+            if (data.mine) {
+                minesweeperGameOver = true;
+                minesweaperRunning = false;
+                minesweeperRevealAll();
+                minesweeperStatusEl.innerHTML = "Game Over — hit a mine!";
+                return;
+            }
+
+            minesweeperReveal(r, c);
+
+            if (minesweeperCheckWin()) {
+                minesweeperGameOver = true;
+                minesweaperRunning = false;
+                minesweeperStatusEl.innerHTML = "You won!";
+            }
+
+            minesweeperRender();
+        }
+
+        function minesweeperReveal(r, c) {
+            var data = minesweeperBoard[r][c];
+            if (data.revealed) return;
+            data.revealed = true;
+            data.flagged = false;
+            minesweeperRevealed++;
+
+            if (data.adjMines === 0) {
+                var i, j;
+                for (i = r - 1; i <= r + 1; i++) {
+                    for (j = c - 1; j <= c + 1; j++) {
+                        if (i >= 0 && i < minesweeperBoard.length && j >= 0 && j < minesweeperBoard[0].length) {
+                            if (!minesweeperBoard[i][j].revealed && !minesweeperBoard[i][j].mine) {
+                                minesweeperReveal(i, j);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function minesweeperRevealAll() {
+            var i, j;
+            for (i = 0; i < minesweeperBoard.length; i++) {
+                for (j = 0; j < minesweeperBoard[i].length; j++) {
+                    minesweeperBoard[i][j].revealed = true;
+                }
+            }
+        }
+
+        function minesweeperCheckWin() {
+            var i, j;
+            for (i = 0; i < minesweeperBoard.length; i++) {
+                for (j = 0; j < minesweeperBoard[i].length; j++) {
+                    var data = minesweeperBoard[i][j];
+                    if (!data.mine && !data.revealed) return false;
+                }
+            }
+            return true;
+        }
+
+        function minesweaperReset() {
+            minesweeperInit();
+        }
+
+        minesweeperInit();
     </script>
 </body>
 </html>
