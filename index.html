@@ -530,6 +530,29 @@
             box-shadow: 0 18px 40px #000000aa inset;
         }
 
+        #chat-log::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #chat-log::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chat-log::-webkit-scrollbar-thumb {
+            background: var(--accent-soft);
+            border-radius: 5px;
+        }
+
+        #chat-log::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        /* Firefox scrollbar */
+        #chat-log {
+            scrollbar-color: var(--accent-soft) transparent;
+            scrollbar-width: thin;
+        }
+
         .chat-msg {
             margin-bottom:10px;
             max-width:70%;
@@ -1751,9 +1774,8 @@
             wrapper.appendChild(bubble);
             chatLog.appendChild(wrapper);
 
-            setTimeout(function () {
-                chatLog.scrollTop = chatLog.scrollHeight;
-            }, 0);
+            // Autoscroll to bottom
+            chatLog.scrollTop = chatLog.scrollHeight;
         }
 
         function chatSend() {
