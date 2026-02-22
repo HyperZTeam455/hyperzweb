@@ -9,3 +9,4 @@ This is HyperZWeb your hub for EVERYTHING!
 6. 2048
 7. Flappy bird
 8. Checkers
+9. Connect Four
