@@ -630,7 +630,39 @@
             font-size: 32px;
             font-weight: 700;
             color: #f5f7ff;
-            transition: 0.15s ease-in-out;
+            transition: all 0.15s ease-in-out;
+            position: relative;
+        }
+
+        .tile-2048.slide {
+            animation: slideIn 0.15s ease-in-out;
+        }
+
+        .tile-2048.merge {
+            animation: mergeScale 0.15s ease-in-out;
+        }
+
+        @keyframes slideIn {
+            0% {
+                opacity: 0.7;
+                transform: scale(0.95);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes mergeScale {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.15);
+            }
+            100% {
+                transform: scale(1);
+            }
         }
 
         .tile-2048.empty {
@@ -733,6 +765,12 @@
                 <h2>2048</h2>
                 <p>Slide tiles to combine numbers and reach 2048.</p>
                 <button class="btn-small" onclick="openGame('2048')">Play</button>
+            </div>
+
+            <div class="game-card">
+                <h2>Flappy Bird</h2>
+                <p>Tap to fly, avoid the pipes and obstacles.</p>
+                <button class="btn-small" onclick="openGame('flappybird')">Play</button>
             </div>
         </div>
     </div>
@@ -837,6 +875,20 @@
             </div>
             <div id="2048-status" class="status"></div>
         </div>
+
+        <div id="game-flappybird" class="game-inner">
+            <div class="game-header"><h2>Flappy Bird</h2></div>
+            <div class="game-options">
+                <button class="btn-small" onclick="flappybirdReset()">New Game</button>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+                <div id="flappybird-score" style="color:var(--accent-strong); font-size:18px; font-weight:600;">Score: 0</div>
+                <canvas id="flappybird-canvas" width="320" height="480"
+                    style="background: linear-gradient(180deg, #87ceeb 0%, #e0f6ff 100%); border:2px solid var(--accent-soft); border-radius:10px; display:block; cursor:pointer; box-shadow:0 18px 40px #000000aa;">
+                </canvas>
+            </div>
+            <div id="flappybird-status" class="status" style="margin-top:12px;">Click canvas or press SPACE to flap</div>
+        </div>
     </div>
 
     <script>
@@ -914,6 +966,11 @@
             if (lower.indexOf("2048") !== -1) {
                 showSection("games");
                 openGame("2048");
+                return;
+            }
+            if (lower.indexOf("flappy") !== -1 || lower.indexOf("bird") !== -1) {
+                showSection("games");
+                openGame("flappybird");
                 return;
             }
 
@@ -1092,6 +1149,7 @@
             document.getElementById("game-snake").style.display = "none";
             document.getElementById("game-minesweeper").style.display = "none";
             document.getElementById("game-2048").style.display = "none";
+            document.getElementById("game-flappybird").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -1111,6 +1169,9 @@
             } else if (gameId === "2048") {
                 document.getElementById("game-2048").style.display = "block";
                 game2048Reset();
+            } else if (gameId === "flappybird") {
+                document.getElementById("game-flappybird").style.display = "block";
+                flappybirdReset();
             }
         }
 
@@ -2353,6 +2414,7 @@
         var game2048Score = 0;
         var game2048GameOver = false;
         var game2048Won = false;
+        var game2048MergedTiles = {};
 
         function game2048Init() {
             game2048Board = [];
@@ -2366,6 +2428,7 @@
             game2048Score = 0;
             game2048GameOver = false;
             game2048Won = false;
+            game2048MergedTiles = {};
             game2048AddTile();
             game2048AddTile();
             game2048Render();
@@ -2391,22 +2454,31 @@
         function game2048Render() {
             var board = document.getElementById("2048-board");
             board.innerHTML = "";
-            var i, j, cell, val;
+            var i, j, cell, val, key;
             for (i = 0; i < 4; i++) {
                 for (j = 0; j < 4; j++) {
                     cell = document.createElement("div");
                     cell.className = "tile-2048";
                     val = game2048Board[i][j];
+                    key = i + "," + j;
                     if (val === 0) {
                         cell.className += " empty";
                     } else {
                         cell.setAttribute("data-value", val);
                         cell.innerHTML = val;
+                        // Add merge animation if this tile was just merged
+                        if (game2048MergedTiles[key]) {
+                            cell.className += " merge";
+                        } else {
+                            cell.className += " slide";
+                        }
                     }
                     board.appendChild(cell);
                 }
             }
             document.getElementById("2048-score").innerHTML = "Score: " + game2048Score;
+            // Clear merged tiles after render
+            game2048MergedTiles = {};
         }
 
         function game2048Move(direction) {
@@ -2452,6 +2524,7 @@
                     if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i][j + 1]) {
                         game2048Board[i][j] *= 2;
                         game2048Score += game2048Board[i][j];
+                        game2048MergedTiles[i + "," + j] = true;
                         game2048Board[i][j + 1] = 0;
                         moved = true;
                     }
@@ -2486,6 +2559,7 @@
                     if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i][j - 1]) {
                         game2048Board[i][j] *= 2;
                         game2048Score += game2048Board[i][j];
+                        game2048MergedTiles[i + "," + j] = true;
                         game2048Board[i][j - 1] = 0;
                         moved = true;
                     }
@@ -2520,6 +2594,7 @@
                     if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i + 1][j]) {
                         game2048Board[i][j] *= 2;
                         game2048Score += game2048Board[i][j];
+                        game2048MergedTiles[i + "," + j] = true;
                         game2048Board[i + 1][j] = 0;
                         moved = true;
                     }
@@ -2554,6 +2629,7 @@
                     if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i - 1][j]) {
                         game2048Board[i][j] *= 2;
                         game2048Score += game2048Board[i][j];
+                        game2048MergedTiles[i + "," + j] = true;
                         game2048Board[i - 1][j] = 0;
                         moved = true;
                     }
@@ -2666,6 +2742,182 @@
         setTimeout(function() {
             addChatMessage("Welcome to HyperZAI! Ask me anything, do math calculations, or search for information.", "bot");
         }, 100);
+
+        // FLAPPY BIRD GAME
+        var flappybirdCanvas = document.getElementById("flappybird-canvas");
+        var flappybirdCtx = flappybirdCanvas.getContext("2d");
+        var flappybirdScore = 0;
+        var flappybirdGameRunning = false;
+        var flappybirdGameOver = false;
+
+        var bird = {
+            x: 60,
+            y: flappybirdCanvas.height / 2,
+            width: 30,
+            height: 30,
+            velocityY: 0,
+            gravity: 0.6,
+            jumpPower: -8
+        };
+
+        var pipes = [];
+        var pipeWidth = 60;
+        var pipeGap = 120;
+        var pipeHitboxWidth = 54;
+        var pipeFrequency = 100;
+        var pipeCounter = 0;
+        var flappybirdTimer = null;
+
+        function flappybirdInit() {
+            bird.y = flappybirdCanvas.height / 2;
+            bird.velocityY = 0;
+            pipes = [];
+            flappybirdScore = 0;
+            flappybirdGameOver = false;
+            pipeCounter = 0;
+            document.getElementById("flappybird-score").innerHTML = "Score: 0";
+            document.getElementById("flappybird-status").innerHTML = "Click canvas or press SPACE to flap";
+        }
+
+        function flappybirdReset() {
+            flappybirdInit();
+            flappybirdGameRunning = true;
+            if (flappybirdTimer) clearInterval(flappybirdTimer);
+            flappybirdTimer = setInterval(flappybirdLoop, 1000 / 60);
+        }
+
+        function flappybirdStop() {
+            flappybirdGameRunning = false;
+            if (flappybirdTimer) {
+                clearInterval(flappybirdTimer);
+                flappybirdTimer = null;
+            }
+        }
+
+        function flappybirdFlap() {
+            if (flappybirdGameRunning && !flappybirdGameOver) {
+                bird.velocityY = bird.jumpPower;
+            }
+        }
+
+        function flappybirdUpdate() {
+            if (!flappybirdGameRunning) return;
+
+            // Apply gravity
+            bird.velocityY += bird.gravity;
+            bird.y += bird.velocityY;
+
+            // Check bounds
+            if (bird.y <= 0 || bird.y + bird.height >= flappybirdCanvas.height) {
+                flappybirdGameOver = true;
+                document.getElementById("flappybird-status").innerHTML = "Game Over! Score: " + flappybirdScore;
+                flappybirdStop();
+                return;
+            }
+
+            // Generate pipes
+            pipeCounter++;
+            if (pipeCounter > pipeFrequency) {
+                var gapStart = Math.random() * (flappybirdCanvas.height - pipeGap - 60) + 30;
+                pipes.push({
+                    x: flappybirdCanvas.width,
+                    topHeight: gapStart,
+                    scored: false
+                });
+                pipeCounter = 0;
+            }
+
+            // Update pipes
+            for (var i = pipes.length - 1; i >= 0; i--) {
+                pipes[i].x -= 4;
+
+                // Check collision (with 90% hitbox)
+                var hitboxOffsetX = (pipeWidth - pipeHitboxWidth) / 2;
+                if (bird.x < pipes[i].x + pipeHitboxWidth + hitboxOffsetX &&
+                    bird.x + bird.width > pipes[i].x + hitboxOffsetX &&
+                    (bird.y < pipes[i].topHeight ||
+                     bird.y + bird.height > pipes[i].topHeight + pipeGap)) {
+                    flappybirdGameOver = true;
+                    document.getElementById("flappybird-status").innerHTML = "Game Over! Score: " + flappybirdScore;
+                    flappybirdStop();
+                    return;
+                }
+
+                // Score point
+                if (!pipes[i].scored && pipes[i].x + pipeWidth < bird.x) {
+                    pipes[i].scored = true;
+                    flappybirdScore++;
+                    document.getElementById("flappybird-score").innerHTML = "Score: " + flappybirdScore;
+                }
+
+                // Remove off-screen pipes
+                if (pipes[i].x + pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                }
+            }
+        }
+
+        function flappybirdDraw() {
+            // Draw sky gradient
+            var gradient = flappybirdCtx.createLinearGradient(0, 0, 0, flappybirdCanvas.height);
+            gradient.addColorStop(0, "#87ceeb");
+            gradient.addColorStop(1, "#e0f6ff");
+            flappybirdCtx.fillStyle = gradient;
+            flappybirdCtx.fillRect(0, 0, flappybirdCanvas.width, flappybirdCanvas.height);
+
+            // Draw ground
+            flappybirdCtx.fillStyle = "#2d5016";
+            flappybirdCtx.fillRect(0, flappybirdCanvas.height - 40, flappybirdCanvas.width, 40);
+
+            // Draw bird
+            flappybirdCtx.fillStyle = "#ffd700";
+            flappybirdCtx.beginPath();
+            flappybirdCtx.arc(bird.x + bird.width / 2, bird.y + bird.height / 2, bird.width / 2, 0, Math.PI * 2);
+            flappybirdCtx.fill();
+            // Bird eye
+            flappybirdCtx.fillStyle = "#000";
+            flappybirdCtx.beginPath();
+            flappybirdCtx.arc(bird.x + bird.width / 2 + 5, bird.y + bird.height / 2 - 3, 3, 0, Math.PI * 2);
+            flappybirdCtx.fill();
+
+            // Draw pipes
+            flappybirdCtx.fillStyle = "#2d5016";
+            for (var i = 0; i < pipes.length; i++) {
+                var pipe = pipes[i];
+                // Top pipe
+                flappybirdCtx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                // Bottom pipe
+                flappybirdCtx.fillRect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, flappybirdCanvas.height - pipe.topHeight - pipeGap);
+
+                // Pipe highlights
+                flappybirdCtx.fillStyle = "#3a7c1f";
+                flappybirdCtx.fillRect(pipe.x + 2, pipe.topHeight - 20, pipeWidth - 4, 20);
+                flappybirdCtx.fillRect(pipe.x + 2, pipe.topHeight + pipeGap, pipeWidth - 4, 20);
+                flappybirdCtx.fillStyle = "#2d5016";
+            }
+        }
+
+        function flappybirdLoop() {
+            flappybirdUpdate();
+            flappybirdDraw();
+        }
+
+        // Input controls
+        flappybirdCanvas.addEventListener("click", flappybirdFlap);
+        document.addEventListener("keydown", function (e) {
+            if (document.getElementById("game-flappybird").style.display === "block") {
+                if (e.key === " " || e.key === "Spacebar") {
+                    e.preventDefault();
+                    flappybirdFlap();
+                }
+            }
+        });
+
+        // Touch support for Flappy Bird
+        flappybirdCanvas.addEventListener("touchstart", function (e) {
+            e.preventDefault();
+            flappybirdFlap();
+        });
     </script>
 </body>
 </html>
