@@ -10,6 +10,7 @@ This is HyperZWeb your hub for EVERYTHING!
 7. Flappy bird
 8. Checkers
 9. Connect Four
+10. Chess
 # Chatbot
 1. Can search on wikipedia.
 2. Can do math.
