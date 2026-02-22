@@ -758,6 +758,79 @@
         .checkers-piece.king {
             font-weight: 900;
         }
+
+        .board.connect4 {
+            grid-template-columns: repeat(7, 50px);
+            grid-template-rows: repeat(6, 50px);
+            gap: 4px;
+        }
+
+        .cell.connect4-cell {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #0a1020;
+            border: 1px solid #2a3a5a;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .cell.connect4-cell:hover {
+            background: #0f1530;
+            border-color: var(--accent-soft);
+            box-shadow: 0 0 8px #00b4ff33;
+        }
+
+        .connect4-piece {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 -2px 4px rgba(0,0,0,0.3);
+        }
+
+        .connect4-piece.falling {
+            animation: dropPiece 0.5s ease-in;
+        }
+
+        @keyframes dropPiece {
+            0% {
+                transform: translate(-50%, -150%);
+                opacity: 0;
+            }
+            100% {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .connect4-piece.red {
+            background: linear-gradient(135deg, #ff4b81, #ff1744);
+            border: 2px solid #cc0044;
+        }
+
+        .connect4-piece.yellow {
+            background: linear-gradient(135deg, #ffff00, #ffdd00);
+            border: 2px solid #ffaa00;
+            color: #333;
+        }
+
+        .connect4-piece.winner {
+            animation: winPulse 0.6s ease-in-out;
+        }
+
+        @keyframes winPulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+        }
     </style>
 </head>
 <body>
@@ -853,6 +926,12 @@
                 <p>Classic board game with AI bot difficulties.</p>
                 <button class="btn-small" onclick="openGame('checkers')">Play</button>
             </div>
+
+            <div class="game-card">
+                <h2>Connect Four</h2>
+                <p>Get 4 in a row, play vs AI or 2-player.</p>
+                <button class="btn-small" onclick="openGame('connect4')">Play</button>
+            </div>
         </div>
     </div>
 
@@ -920,6 +999,12 @@
         <div id="game-snake" class="game-inner">
             <div class="game-header"><h2>Snake</h2></div>
             <div class="game-options">
+                <label>Difficulty:</label>
+                <select id="snake-difficulty">
+                    <option value="easy">Easy (Slower)</option>
+                    <option value="medium" selected>Medium (Normal)</option>
+                    <option value="hard">Hard (Faster)</option>
+                </select>
                 <button class="btn-small" onclick="snakeReset()">Reset</button>
             </div>
             <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
@@ -986,6 +1071,23 @@
             </div>
             <div id="checkers-board" class="board checkers"></div>
             <div id="checkers-status" class="status"></div>
+        </div>
+
+        <div id="game-connect4" class="game-inner">
+            <div class="game-header"><h2>Connect Four</h2></div>
+            <div class="game-options">
+                <label>Mode:</label>
+                <select id="connect4-mode">
+                    <option value="2p">2 Player</option>
+                    <option value="easy">Easy Bot</option>
+                    <option value="medium" selected>Medium Bot</option>
+                    <option value="hard">Hard Bot</option>
+                    <option value="impossible">Impossible Bot</option>
+                </select>
+                <button class="btn-small" onclick="connect4Reset()">New Game</button>
+            </div>
+            <div id="connect4-board" class="board connect4"></div>
+            <div id="connect4-status" class="status"></div>
         </div>
     </div>
 
@@ -1074,6 +1176,11 @@
             if (lower.indexOf("checker") !== -1) {
                 showSection("games");
                 openGame("checkers");
+                return;
+            }
+            if (lower.indexOf("connect") !== -1 || lower.indexOf("four") !== -1) {
+                showSection("games");
+                openGame("connect4");
                 return;
             }
 
@@ -1254,6 +1361,7 @@
             document.getElementById("game-2048").style.display = "none";
             document.getElementById("game-flappybird").style.display = "none";
             document.getElementById("game-checkers").style.display = "none";
+            document.getElementById("game-connect4").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -1279,6 +1387,9 @@
             } else if (gameId === "checkers") {
                 document.getElementById("game-checkers").style.display = "block";
                 checkersReset();
+            } else if (gameId === "connect4") {
+                document.getElementById("game-connect4").style.display = "block";
+                connect4Reset();
             }
         }
 
@@ -2216,8 +2327,10 @@
         var snakeCanvas = document.getElementById("snake-canvas");
         var snakeCtx = snakeCanvas.getContext("2d");
         var snakeStatus = document.getElementById("snake-status");
+        var snakeDifficultyEl = document.getElementById("snake-difficulty");
 
         var snake, snakeDir, snakeFood, snakeTimer, snakeRunning;
+        var snakeSpeed = 100;
 
         function snakeReset() {
             snake = [{x:10, y:10}];
@@ -2225,8 +2338,18 @@
             snakeFood = spawnFood();
             snakeRunning = true;
 
+            // Set speed based on difficulty
+            var difficulty = snakeDifficultyEl.value;
+            if (difficulty === "easy") {
+                snakeSpeed = 150; // Slower
+            } else if (difficulty === "medium") {
+                snakeSpeed = 100; // Normal
+            } else if (difficulty === "hard") {
+                snakeSpeed = 77; // 1.3x faster (100 / 1.3 ≈ 77)
+            }
+
             if (snakeTimer) clearInterval(snakeTimer);
-            snakeTimer = setInterval(snakeLoop, 100);
+            snakeTimer = setInterval(snakeLoop, snakeSpeed);
 
             snakeStatus.innerHTML = "Use arrow keys to move";
         }
@@ -2845,11 +2968,6 @@
             }
         });
 
-        // Initialize chat with welcome message
-        setTimeout(function() {
-            addChatMessage("Welcome to HyperZAI! Ask me anything, do math calculations, or search for information.", "bot");
-        }, 100);
-
         // FLAPPY BIRD GAME
         var flappybirdCanvas = document.getElementById("flappybird-canvas");
         var flappybirdCtx = flappybirdCanvas.getContext("2d");
@@ -3284,6 +3402,300 @@
         }
 
         checkersInit();
+
+        // CONNECT FOUR GAME
+        var connect4Board = null;
+        var connect4ModeEl = document.getElementById("connect4-mode");
+        var connect4BoardEl = document.getElementById("connect4-board");
+        var connect4StatusEl = document.getElementById("connect4-status");
+        var connect4CurrentPlayer = "red";
+        var connect4GameOver = false;
+        var connect4Winner = null;
+
+        function connect4Init() {
+            connect4Board = [];
+            var i, j;
+            for (i = 0; i < 6; i++) {
+                connect4Board[i] = [];
+                for (j = 0; j < 7; j++) {
+                    connect4Board[i][j] = null;
+                }
+            }
+
+            connect4CurrentPlayer = "red";
+            connect4GameOver = false;
+            connect4Winner = null;
+            connect4Render(-1, -1);
+            connect4StatusEl.innerHTML = "Red to move";
+        }
+
+        var connect4LastDropped = null;
+
+        function connect4Render(lastDropRow, lastDropCol) {
+            console.log("Render called with:", lastDropRow, lastDropCol);
+            try {
+                connect4BoardEl.innerHTML = "";
+                var i, j, cellEl, piece;
+                for (i = 0; i < 6; i++) {
+                    for (j = 0; j < 7; j++) {
+                        cellEl = document.createElement("div");
+                        cellEl.className = "cell connect4-cell";
+
+                        piece = connect4Board[i][j];
+                        if (piece) {
+                            var pieceEl = document.createElement("div");
+                            pieceEl.className = "connect4-piece " + piece;
+                            // Add falling animation only to the newly dropped piece
+                            if (lastDropRow !== undefined && lastDropCol !== undefined && i === lastDropRow && j === lastDropCol) {
+                                pieceEl.className += " falling";
+                                console.log("Adding falling animation to", i, j);
+                            }
+                            if (connect4Winner && connect4Winner.includes(i + "-" + j)) {
+                                pieceEl.className += " winner";
+                            }
+                            cellEl.appendChild(pieceEl);
+                        }
+
+                        (function (col) {
+                            cellEl.onclick = function () { connect4DropPiece(col); };
+                        })(j);
+
+                        connect4BoardEl.appendChild(cellEl);
+                    }
+                }
+                console.log("Render complete");
+            } catch (err) {
+                console.error("Render error:", err);
+            }
+        }
+
+        function connect4DropPiece(col) {
+            console.log("=== DropPiece called, col:", col);
+            
+            if (connect4GameOver) {
+                console.log("Game over, returning");
+                return;
+            }
+            
+            var mode = connect4ModeEl.value;
+            console.log("Mode:", mode, "Current player:", connect4CurrentPlayer);
+            
+            // In 2-player, anyone can move
+            // In single-player, only red (human) can click, but yellow (bot) can be called programmatically
+            if (mode !== "2p" && connect4CurrentPlayer !== "red") {
+                console.log("ALLOWED: Bot is moving in single player");
+            }
+
+            // Find lowest empty row in column
+            var row = -1;
+            for (var i = 5; i >= 0; i--) {
+                if (!connect4Board[i][col]) {
+                    row = i;
+                    break;
+                }
+            }
+
+            console.log("Found row:", row);
+            if (row === -1) {
+                console.log("Column full, returning");
+                return;
+            }
+
+            // Place piece
+            console.log("Placing", connect4CurrentPlayer, "at", row, col);
+            connect4Board[row][col] = connect4CurrentPlayer;
+
+            // Render with animation for this piece
+            console.log("Calling render with row:", row, "col:", col);
+            connect4Render(row, col);
+            console.log("Render complete");
+
+            // Check for win
+            console.log("Checking for win");
+            if (connect4CheckWin(row, col, connect4CurrentPlayer)) {
+                console.log("WINNER!");
+                connect4GameOver = true;
+                connect4StatusEl.innerHTML = (connect4CurrentPlayer === "red" ? "Red" : "Yellow") + " wins!";
+                return;
+            }
+
+            // Check for draw
+            var isFull = true;
+            for (var j = 0; j < 7; j++) {
+                if (!connect4Board[0][j]) {
+                    isFull = false;
+                    break;
+                }
+            }
+            
+            if (isFull) {
+                console.log("DRAW!");
+                connect4GameOver = true;
+                connect4StatusEl.innerHTML = "Draw!";
+                return;
+            }
+
+            // Switch player
+            console.log("Switching player from", connect4CurrentPlayer);
+            connect4CurrentPlayer = connect4CurrentPlayer === "red" ? "yellow" : "red";
+            console.log("New player:", connect4CurrentPlayer);
+            connect4StatusEl.innerHTML = (connect4CurrentPlayer === "red" ? "Red" : "Yellow") + " to move";
+
+            // If single-player and it's now yellow's turn, make bot move
+            if (mode !== "2p" && connect4CurrentPlayer === "yellow") {
+                console.log("Scheduling bot move in 700ms");
+                setTimeout(function () { 
+                    console.log("BOT MOVE TIMEOUT FIRED");
+                    connect4BotMove(mode); 
+                }, 700);
+            }
+            
+            console.log("=== DropPiece complete ===");
+        }
+
+        function connect4CheckWin(row, col, player) {
+            var directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            var winMoves = [];
+
+            for (var d = 0; d < directions.length; d++) {
+                var count = 1;
+                var moves = [row + "-" + col];
+
+                // Check positive direction
+                var r = row + directions[d][0];
+                var c = col + directions[d][1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && connect4Board[r][c] === player) {
+                    count++;
+                    moves.push(r + "-" + c);
+                    r += directions[d][0];
+                    c += directions[d][1];
+                }
+
+                // Check negative direction
+                r = row - directions[d][0];
+                c = col - directions[d][1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && connect4Board[r][c] === player) {
+                    count++;
+                    moves.push(r + "-" + c);
+                    r -= directions[d][0];
+                    c -= directions[d][1];
+                }
+
+                if (count >= 4) {
+                    connect4Winner = moves;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        function connect4GetValidMoves() {
+            var moves = [];
+            for (var j = 0; j < 7; j++) {
+                if (!connect4Board[0][j]) {
+                    moves.push(j);
+                }
+            }
+            return moves;
+        }
+
+        function connect4BotMove(mode) {
+            console.log("Bot move called, mode:", mode, "Current player:", connect4CurrentPlayer);
+            
+            if (connect4GameOver) {
+                console.log("Game over, returning");
+                return;
+            }
+
+            var validMoves = [];
+            for (var col = 0; col < 7; col++) {
+                if (!connect4Board[0][col]) {
+                    validMoves.push(col);
+                }
+            }
+
+            if (validMoves.length === 0) {
+                console.log("No valid moves");
+                return;
+            }
+
+            console.log("Valid moves:", validMoves);
+
+            var move;
+            
+            if (mode === "easy") {
+                move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                console.log("Easy mode, random move:", move);
+            } else {
+                // Medium and Hard - pick best move
+                move = validMoves[0];
+                var bestScore = -999;
+                
+                for (var i = 0; i < validMoves.length; i++) {
+                    var col = validMoves[i];
+                    var score = 0;
+                    
+                    // Find row
+                    var row = -1;
+                    for (var r = 5; r >= 0; r--) {
+                        if (!connect4Board[r][col]) {
+                            row = r;
+                            break;
+                        }
+                    }
+                    
+                    if (row === -1) continue;
+                    
+                    // Test win
+                    connect4Board[row][col] = "yellow";
+                    if (connect4CheckWinBoard(connect4Board, row, col, "yellow")) {
+                        score = 1000;
+                    } else {
+                        score = Math.random() * 100 + (3 - Math.abs(col - 3)) * 10;
+                    }
+                    connect4Board[row][col] = null;
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        move = col;
+                    }
+                }
+                console.log("Medium/Hard mode, best move:", move);
+            }
+
+            console.log("About to drop piece at column:", move);
+            connect4DropPiece(move);
+        }
+
+        function connect4CheckWinBoard(board, row, col, player) {
+            var directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            for (var d = 0; d < directions.length; d++) {
+                var count = 1;
+                var r = row + directions[d][0];
+                var c = col + directions[d][1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && board[r][c] === player) {
+                    count++;
+                    r += directions[d][0];
+                    c += directions[d][1];
+                }
+                r = row - directions[d][0];
+                c = col - directions[d][1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && board[r][c] === player) {
+                    count++;
+                    r -= directions[d][0];
+                    c -= directions[d][1];
+                }
+                if (count >= 4) return true;
+            }
+            return false;
+        }
+
+        function connect4Reset() {
+            connect4Init();
+        }
+
+        connect4Init();
 
         // Initialize chat with welcome message
         setTimeout(function() {
