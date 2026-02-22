@@ -4030,6 +4030,13 @@
                 return;
             }
             
+            // Check if only kings remain (insufficient material = draw)
+            if (chessOnlyKingsRemain()) {
+                chessGameOver = true;
+                chessStatusEl.innerHTML = "Draw! Only kings remaining (insufficient material)";
+                return;
+            }
+            
             // Check for stalemate (only if opponent has pieces)
             if (opponentHasPieces && chessIsStalemate(chessCurrentPlayer)) {
                 chessGameOver = true;
@@ -4112,6 +4119,14 @@
                 chessGameOver = true;
                 var winner = chessCurrentPlayer === "white" ? "Black" : "White";
                 chessStatusEl.innerHTML = "Checkmate! " + winner + " wins!";
+                chessPendingPromotion = null;
+                return;
+            }
+            
+            // Check if only kings remain (insufficient material = draw)
+            if (chessOnlyKingsRemain()) {
+                chessGameOver = true;
+                chessStatusEl.innerHTML = "Draw! Only kings remaining (insufficient material)";
                 chessPendingPromotion = null;
                 return;
             }
@@ -4316,6 +4331,18 @@
                 }
             }
             return true; // No moves escape check = checkmate
+        }
+
+        function chessOnlyKingsRemain() {
+            // Check if only kings are left on the board
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    if (chessBoard[i][j] && chessBoard[i][j].type !== "K") {
+                        return false; // Found a non-king piece
+                    }
+                }
+            }
+            return true; // Only kings remain
         }
 
         function chessIsStalemate(color) {
@@ -4527,6 +4554,13 @@
             if (chessIsCheckmate(chessCurrentPlayer)) {
                 chessGameOver = true;
                 chessStatusEl.innerHTML = "Checkmate! Black wins!";
+                return;
+            }
+            
+            // Check if only kings remain (insufficient material = draw)
+            if (chessOnlyKingsRemain()) {
+                chessGameOver = true;
+                chessStatusEl.innerHTML = "Draw! Only kings remaining (insufficient material)";
                 return;
             }
             
