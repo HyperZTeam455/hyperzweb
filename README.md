@@ -8,3 +8,4 @@ This is HyperZWeb your hub for EVERYTHING!
 5. Minesweeper
 6. 2048
 7. Flappy bird
+8. Checkers
