@@ -1,5 +1,5 @@
 # HyperZWeb
-This is HyperZWeb your hub for EVERYTHING!
+This is HyperZWeb your hub for Games, Privacy, and AI!
 # Games
 1. Tic Tac Toe
 2. Reversi
