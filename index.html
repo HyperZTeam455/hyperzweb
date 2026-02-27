@@ -23,13 +23,30 @@
       color: #4cff91;
       letter-spacing: 0.1em;
     }
+    button {
+      padding: 0.6rem 1.4rem;
+      background: #7b7bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      border-radius: 2px;
+      margin: 0 0.5rem;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #9999ff;
+    }
   </style>
 </head>
 <body>
 
   <h1>HyperZWeb</h1>
-  <p>Generating blob and opening new tab…</p>
-  <div class="status" id="status">Initializing…</div>
+  <p>Choose a launch method:</p>
+  <div class="status" id="status"></div>
+  <button id="blankBtn">Launch about:blank</button>
+  <button id="blobBtn">Launch Blob</button>
 
   <script>
     // ─────────────────────────────────────────────
@@ -74,43 +91,33 @@
     // ─────────────────────────────────────────────
 
     const statusEl = document.getElementById('status');
+    const blankBtn = document.getElementById('blankBtn');
+    const blobBtn = document.getElementById('blobBtn');
 
-    function launch() {
-      // 1. Create blob in temporary memory
+    // Launch about:blank with HyperZWeb iframe
+    blankBtn.addEventListener('click', () => {
+      const newTab = window.open('about:blank', '_blank');
+      if (newTab) {
+        newTab.document.write(blobContent);
+        statusEl.textContent = 'about:blank tab opened ✓';
+        window.close();
+      } else {
+        statusEl.textContent = '⚠ Popup blocked';
+      }
+    });
+
+    // Launch blob
+    blobBtn.addEventListener('click', () => {
       const blob = new Blob([blobContent], { type: 'text/html' });
       const blobUrl = URL.createObjectURL(blob);
-
-      statusEl.textContent = 'Blob created → ' + blobUrl.slice(0, 48) + '…';
-
-      // 2. Open blob in new tab
       const newTab = window.open(blobUrl, '_blank');
-
-      if (!newTab) {
-        statusEl.textContent = '⚠ Popup blocked — click below to open manually.';
-        const btn = document.createElement('button');
-        btn.textContent = 'Open Blob';
-        btn.style.cssText = 'margin-top:1rem;padding:.6rem 1.4rem;background:#7b7bff;color:#fff;border:none;cursor:pointer;font-family:inherit;font-size:.9rem;border-radius:2px;';
-        btn.onclick = () => { window.open(blobUrl, '_blank'); window.close(); };
-        document.body.appendChild(btn);
-        return;
-      }
-
-      // 3. Close instantly
-      window.close();
-    }
-
-    // Continuously check: if this tab is not focused / visible, close it immediately
-    setInterval(() => {
-      if (document.hidden || document.visibilityState !== 'visible') {
+      if (newTab) {
+        statusEl.textContent = 'Blob tab opened ✓';
         window.close();
+      } else {
+        statusEl.textContent = '⚠ Popup blocked';
       }
-    }, 0);
-
-    // Also close the moment the tab loses focus
-    window.addEventListener('blur', () => window.close());
-
-    // Auto-launch on page load
-    window.addEventListener('load', launch);
+    });
   </script>
 </body>
 </html>
