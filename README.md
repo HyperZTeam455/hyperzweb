@@ -17,6 +17,7 @@ This is HyperZWeb your hub for Games, Privacy, and AI!
 14. Hacker Simulator
 15. Block Blast
 16. Grid Maze
+17. Dune!
 # Chatbot
 1. Can search on wikipedia.
 2. Can do math.
